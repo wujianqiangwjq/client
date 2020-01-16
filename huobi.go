@@ -34,8 +34,7 @@ var Collection *mongo.MongoCollection
 
 func init() {
 	Res = Result{Id: int64(0)}
-	db := mongo.Client.GetDb("bits")
-	Collection = db.GetCollection("btc_min")
+	Collection = mongo.Client.GetDb("bits").GetCollection("btc_min")
 
 }
 
@@ -57,7 +56,6 @@ func main() {
 		sclose := tick.Get("close").MustFloat64()
 		scount := tick.Get("count").MustInt()
 		svol := tick.Get("vol").MustFloat64()
-		fmt.Println("new:", sid, "old:", Res.Id)
 		if Res.Id == 0 {
 			fmt.Println("old:0")
 			Res.Id = sid
@@ -67,12 +65,12 @@ func main() {
 			Res.Vol = svol
 		} else {
 			if sid != Res.Id {
-				fmt.Println("old!=new")
 				resdata := Res.ToMap()
 				fmt.Println(resdata)
-				go func(data map[string]interface{}) {
-					Collection.Create(data)
-				}(resdata)
+				go func(data map[string]interface{}, col *mongo.MongoCollection) {
+					col.Create(data)
+
+				}(resdata, Collection)
 
 			}
 			Res.Id = sid
