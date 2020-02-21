@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	// "fmt"
 
 	"github.com/wujianqiangwjq/huobi"
 	"github.com/wujianqiangwjq/mongo"
@@ -11,35 +11,16 @@ type Pair struct {
 	topic    string
 	listener func(data *huobi.JSON)
 }
-type Result struct {
-	Id     int64   `json:"_id"`
-	Amount float64 `json: "amount"`
-	Close  float64 `json: "close"`
-	Count  int     `json: "count"`
-	Vol    float64 `json: "vol"`
-}
 
-func (r *Result) ToMap() map[string]interface{} {
-	res := make(map[string]interface{})
-	res["_id"] = r.Id
-	res["amount"] = r.Amount
-	res["close"] = r.Close
-	res["count"] = r.Count
-	res["vol"] = r.Vol
-	return res
-}
-
-var Res Result
 var Collection *mongo.MongoCollection
 
 func init() {
-	Res = Result{Id: int64(0)}
 	db := mongo.Client.GetDb("bits")
 	Collection = db.GetCollection("btc_min")
-
 }
 
 func main() {
+	go Collection.HandleLoop()
 	client, err := huobi.DefaultConnect()
 	if err != nil {
 		panic(err)
@@ -52,36 +33,20 @@ func main() {
 
 	kline.listener = func(data *huobi.JSON) {
 		tick := data.Get("tick")
-		sid := tick.Get("id").MustInt64()
-		samount := tick.Get("amount").MustFloat64()
-		sclose := tick.Get("close").MustFloat64()
-		scount := tick.Get("count").MustInt()
-		svol := tick.Get("vol").MustFloat64()
-		fmt.Println("new:", sid, "old:", Res.Id)
-		if Res.Id == 0 {
-			fmt.Println("old:0")
-			Res.Id = sid
-			Res.Amount = samount
-			Res.Close = sclose
-			Res.Count = scount
-			Res.Vol = svol
-		} else {
-			if sid != Res.Id {
-				fmt.Println("old!=new")
-				resdata := Res.ToMap()
-				fmt.Println(resdata)
-				go func(data map[string]interface{}) {
-					Collection.Create(data)
-				}(resdata)
-
-			}
-			Res.Id = sid
-			Res.Amount = samount
-			Res.Close = sclose
-			Res.Count = scount
-			Res.Vol = svol
-
+		resdata := make(map[string]interface{})
+		resdata["_id"] = tick.Get("id").MustInt64()
+		resdata["data"] = map[string]interface{}{
+			"amount": tick.Get("amount").MustFloat64(),
+			"close":  tick.Get("close").MustFloat64(),
+			"count":  tick.Get("count").MustInt(),
+			"vol":    tick.Get("vol").MustFloat64(),
 		}
+		resdata["push_key"] = "data"
+		//data format: {"_id":1,"data":{"_id":1,"open":12.7..}, push_key:"data"}
+		go func(data map[string]interface{}) {
+			//fmt.Println(data)
+			Collection.Push(data)
+		}(resdata)
 
 	}
 	client.Subcribe(kline.topic, kline.listener)
