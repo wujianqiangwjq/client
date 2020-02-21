@@ -17,6 +17,7 @@ var Collection *mongo.MongoCollection
 func init() {
 	db := mongo.Client.GetDb("bits")
 	Collection = db.GetCollection("btc_min")
+
 }
 
 func main() {
