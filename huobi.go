@@ -41,6 +41,9 @@ func main() {
 			"close":  tick.Get("close").MustFloat64(),
 			"count":  tick.Get("count").MustInt(),
 			"vol":    tick.Get("vol").MustFloat64(),
+			"open":   tick.Get("open").MustFloat64(),
+			"high":   tick.Get("high").MustFloat64(),
+			"low":    tick.Get("low").MustFloat64(),
 		}
 		resdata["push_key"] = "data"
 		//data format: {"_id":1,"data":{"_id":1,"open":12.7..}, push_key:"data"}
