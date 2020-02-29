@@ -2,6 +2,7 @@ package main
 
 import (
 	// "fmt"
+	"time"
 
 	"github.com/wujianqiangwjq/huobi"
 	"github.com/wujianqiangwjq/mongo"
@@ -10,6 +11,11 @@ import (
 type Pair struct {
 	topic    string
 	listener func(data *huobi.JSON)
+	backend  *huobi.HuoBi
+}
+
+func (pair *Pair) Sub() {
+	pair.backend.Subcribe(pair.topic, pair.listener)
 }
 
 var Collection *mongo.MongoCollection
@@ -22,14 +28,16 @@ func init() {
 
 func main() {
 	go Collection.HandleLoop()
-	client, err := huobi.DefaultConnect()
+	timeout := time.Duration(20 * time.Second)
+	client, err := huobi.DefaultConnect(timeout)
 	if err != nil {
 		panic(err)
 		return
 	}
 
 	kline := Pair{
-		topic: "market.btcusdt.kline.1min",
+		topic:   "market.btcusdt.kline.1min",
+		backend: client,
 	}
 
 	kline.listener = func(data *huobi.JSON) {
@@ -53,9 +61,10 @@ func main() {
 		}(resdata)
 
 	}
-	client.Subcribe(kline.topic, kline.listener)
-	defer client.Close()
 
-	client.Loop()
+	kline.Sub()
+	defer kline.backend.Close()
+
+	kline.backend.KeepAlived()
 
 }
